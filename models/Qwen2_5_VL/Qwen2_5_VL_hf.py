@@ -2,6 +2,20 @@ from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor,Qwen2_5_VLProcessor
 import torch
+
+
+def _clean_image_placeholders(prompt):
+    lines = []
+    for line in str(prompt or "").splitlines():
+        stripped = line.strip()
+        if stripped == "<image>" or (
+            stripped.startswith("<image_") and stripped.endswith(">:")
+        ):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 class Qwen2_5_VL:
     def __init__(self,model_path,args):
         super().__init__()
@@ -20,13 +34,14 @@ class Qwen2_5_VL:
         if "system" in messages:
             new_messages.append({"role":"system","content":messages["system"]}) 
         if "image" in messages:
-            new_messages.append({"role":"user","content":[{"type":"image","image":messages["image"]},{"type":"text","text":messages["prompt"]}]})
+            prompt = _clean_image_placeholders(messages["prompt"])
+            new_messages.append({"role":"user","content":[{"type":"image","image":messages["image"]},{"type":"text","text":prompt}]})
         elif "images" in messages:
+            prompt = _clean_image_placeholders(messages["prompt"])
             content = []
-            for i,image in enumerate(messages["images"]):
-                content.append({"type":"text","text":f"<image_{i+1}>: "})
+            for image in messages["images"]:
                 content.append({"type":"image","image":image})
-            content.append({"type":"text","text":messages["prompt"]})
+            content.append({"type":"text","text":prompt})
             new_messages.append({"role":"user","content":content})
         else:
             new_messages.append({"role":"user","content":[{"type":"text","text":messages["prompt"]}]})
@@ -68,4 +83,3 @@ class Qwen2_5_VL:
             res.append(result)
         return res
 
-        

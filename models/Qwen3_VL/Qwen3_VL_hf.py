@@ -39,6 +39,18 @@ from models.decoder_self_attn_viz import (
 )
 
 
+def _clean_image_placeholders(prompt):
+    lines = []
+    for line in str(prompt or "").splitlines():
+        stripped = line.strip()
+        if stripped == "<image>" or (
+            stripped.startswith("<image_") and stripped.endswith(">:")
+        ):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 def _bool_arg(args, name, default="False"):
     return str(getattr(args, name, default) or default).lower() in ("1", "true", "yes")
 
@@ -147,18 +159,19 @@ class Qwen3_VL:
         if "system" in messages:
             new_messages.append({"role": "system", "content": messages["system"]})
         if "image" in messages:
+            prompt = _clean_image_placeholders(messages["prompt"])
             new_messages.append(
                 {
                     "role": "user",
-                    "content": [{"type": "image", "image": messages["image"]}, {"type": "text", "text": messages["prompt"]}],
+                    "content": [{"type": "image", "image": messages["image"]}, {"type": "text", "text": prompt}],
                 }
             )
         elif "images" in messages:
+            prompt = _clean_image_placeholders(messages["prompt"])
             content = []
-            for i, image in enumerate(messages["images"]):
-                content.append({"type": "text", "text": f"<image_{i+1}>: "})
+            for image in messages["images"]:
                 content.append({"type": "image", "image": image})
-            content.append({"type": "text", "text": messages["prompt"]})
+            content.append({"type": "text", "text": prompt})
             new_messages.append({"role": "user", "content": content})
         else:
             new_messages.append({"role": "user", "content": [{"type": "text", "text": messages["prompt"]}]})

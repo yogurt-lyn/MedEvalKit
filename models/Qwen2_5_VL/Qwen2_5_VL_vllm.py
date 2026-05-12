@@ -4,6 +4,20 @@ from qwen_vl_utils import process_vision_info
 import os
 
 import torch
+
+
+def _clean_image_placeholders(prompt):
+    lines = []
+    for line in str(prompt or "").splitlines():
+        stripped = line.strip()
+        if stripped == "<image>" or (
+            stripped.startswith("<image_") and stripped.endswith(">:")
+        ):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 class Qwen2_5_VL:
     def __init__(self,model_path,args):
         super().__init__()
@@ -35,7 +49,7 @@ class Qwen2_5_VL:
                 current_messages.append({"role":role,"content":[{"type":"text","text":content}]}) 
 
         else:
-            prompt = messages["prompt"]
+            prompt = _clean_image_placeholders(messages["prompt"])
             if "system" in messages:
                 system_prompt = messages["system"]
                 current_messages.append({"role":"system","content":system_prompt})
@@ -44,10 +58,9 @@ class Qwen2_5_VL:
                 current_messages.append({"role":"user","content":[{"type":"image","image":image},{"type":"text","text":prompt}]})
             elif "images" in messages:
                 content = []
-                for i,image in enumerate(messages["images"]):
-                    content.append({"type":"text","text":f"<image_{i+1}>: "})
+                for image in messages["images"]:
                     content.append({"type":"image","image":image})
-                content.append({"type":"text","text":messages["prompt"]})
+                content.append({"type":"text","text":prompt})
                 current_messages.append({"role":"user","content":content})
             else:
                 current_messages.append({"role":"user","content":[{"type":"text","text":prompt}]}) 
