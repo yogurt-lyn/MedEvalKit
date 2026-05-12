@@ -1,142 +1,97 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# export PYTHONPATH="/media/hdd2/MedEvalKit/Neo_Red:$PYTHONPATH"
-# # export HF_ENDPOINT=https://hf-mirror.com
-# # NeoCXR,IU_XRAY,MIMIC_CXR,  MMMU-Medical-test,TemporalNeoCXR,MMMU-Medical-val,PMC_VQA,MedQA_USMLE,MedMCQA,PubMedQA,OmniMedVQA,Medbullets_op4,Medbullets_op5,MedXpertQA-Text,MedXpertQA-MM,SuperGPQA,HealthBench,IU_XRAY,CheXpert_Plus,MIMIC_CXR,CMB,CMExam,CMMLU,MedQA_MCMLE,VQA_RAD,SLAKE,PATH_VQA,MedFrameQA,Radrestruct
-# EVAL_DATASETS="NeoCXR" 
-# # DATASETS_PATH="/media/hdd2/MedEvalKit/LLaVARad/hospital_data/NeoCXR/Clinictriplist" #/media/hdd2/MedEvalKit/LLaVARad/hospital_data  /media/hdd2/MedEvalKit/LLaVARad/hospital_data /media/hdd2/MedEvalKit/LLaVARad/hospital_data/NeoCXR /media/hdd2/xhrdata/datasets /media/hdd2/MedEvalKit/utils/IU_XRAY /media/hdd2/MedEvalKit/utils/VQA_RAD
-# # DATASETS_PATH="/media/hdd2/MedEvalKit/LLaVARad/hospital_data/NeoCXR/Clinictriplist/NeoCXR"
-# DATASETS_PATH="/media/hdd2/MedEvalKit/LLaVARad/hospital_data/NeoCXR/Clinictriplist"
-# # /media/hdd2/MedEvalKit/eval_results/{}/
-# OUTPUT_PATH="/media/hdd2/MedEvalKit/eval_results/NeoRed(New)/findings_loss0.5notubeshuffle_epoch=1-lora-1e-1e-4" #/media/hdd2/MedEvalKit/eval_results/NeoRed(Clinic)  / {}oneimage  eval_results/NeoCXR(Temporal)/LLava_Med
-# # NeoCXR,TestModel,Qwen2-VL,NeoRed,Qwen2.5-VL,BiMediX2,LLava_Med,LLava_Rad,,Huatuo,InternVL,Llama-3.2,LLava,Janus,HealthGPT,BiomedGPT,Vllm_Text,MedGemma,Med_Flamingo,MedDr
-OUTPUT_PATH="/data01/kjt_data/MLLM/MedEvalKit/eval_results/heat"
-# # MODEL_PATH="/media/hdd2/llava-med-v1.5-mistral-7b" #erro：AssertionError: Padding_idx must be within num_embeddings
-# # MODEL_PATH="/media/hdd2/Qwen2.5-VL-7B-Instruct"
-# # MODEL_PATH="/media/hdd2/InternVL2_5-8B"
-# MODEL_PATH="/media/hdd2/MedEvalKit/LLaVARadWeight" # /media/hdd2/MedEvalKit/LLaVARadWeight /media/hdd2/checkpoints/NeoCXR_baseline_traindatanum_4395-lora-3e-1e-4   /media/hdd2/MedEvalKit/LLaVARad/checkpoints/Temporal_NeoCXR-lora-3e-1e-4
-# # NeoRad
-# # MODEL_PATH="/media/hdd2/MedEvalKit/LLaVARad/checkpoints/NeoCXRClinic_onlyImage-lora-3e-1e-4"
-# MODEL_NAME="NeoRed"
-# MODEL_PATH="/media/hdd2/MedEvalKit/Neo_Red/checkpoints/findings_loss0.5notubeshuffle_epoch=1-lora-1e-1e-4"
+# Generic MedEvalKit evaluation launcher.
+# Override any value below with environment variables, e.g.:
+#   EVAL_DATASETS=MIMIC_CXRfrontal DATASETS_PATH="$PWD/utils" MODEL_NAME=Qwen3-VL \
+#   MODEL_PATH=/path/to/Qwen3-VL-8B-Instruct USE_VLLM=False bash eval.sh
 
-# # consineFindings_loss_weight_0.5-lora-3e-1e-4
-# # MODEL_PATH="/media/hdd2/llava-1.5-7b-hf"
-# # MODEL_PATH="/media/hdd2/HuatuoGPT-Vision-7B"
+PROJECT_ROOT="${MEDEVALKIT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+CONDA_NAME="${CONDA_NAME:-}"
 
-# OUTPUT_PATH="/media/hdd2/MedEvalKit/eval_results/${EVAL_DATASETS}/${MODEL_NAME}/" #/{}oneimage
+if [[ -n "${CONDA_NAME}" ]] && command -v conda >/dev/null 2>&1; then
+  # shellcheck disable=SC1091
+  source "$(conda info --base)/etc/profile.d/conda.sh"
+  conda activate "${CONDA_NAME}"
+fi
 
-# NeoCXR,MMMU-Medical-test,MMMU-Medical-val,NeoCXR_Temporal,PMC_VQA,MedQA_USMLE,MedMCQA,PubMedQA,OmniMedVQA,Medbullets_op4,Medbullets_op5,MedXpertQA-Text,MedXpertQA-MM,SuperGPQA,HealthBench,IU_XRAY,CheXpert_Plus,MIMIC_CXR,CMB,CMExam,CMMLU,MedQA_MCMLE,VQA_RAD,SLAKE,PATH_VQA,MedFrameQA,Radrestruct
+cd "${PROJECT_ROOT}"
+unset PYTORCH_CUDA_ALLOC_CONF
 
-EVAL_DATASETS="IU_XRAY" 
-DATASETS_PATH="/data01/kjt_data/MLLM/MedEvalKit/utils/IU_XRAY" 
+OUTPUT_PATH="${OUTPUT_PATH:-${PROJECT_ROOT}/eval_results/default}"
+EVAL_DATASETS="${EVAL_DATASETS:-IU_XRAY}"
+DATASETS_PATH="${DATASETS_PATH:-${PROJECT_ROOT}/utils/IU_XRAY}"
+MODEL_NAME="${MODEL_NAME:-LLava_Rad}"
+MODEL_PATH="${MODEL_PATH:-${PROJECT_ROOT}/LLaVARadWeight}"
 
-# EVAL_DATASETS="MIMIC_CXR"
-# DATASETS_PATH="/media/hdd2/MedEvalKit/utils/MIMIC_CXR" 
+if [[ "${MODEL_NAME}" == "LLava_Rad" || "${MODEL_NAME}" == "DQLLava" || "${MODEL_NAME}" == "NeoRed" ]]; then
+  LLAVA_RAD_WEIGHT_ROOT="${LLAVA_RAD_WEIGHT_ROOT:-${PROJECT_ROOT}/LLaVARadWeight}"
+  export LLAVA_RAD_BASE_MODEL_PATH="${LLAVA_RAD_BASE_MODEL_PATH:-${LLAVA_RAD_WEIGHT_ROOT}/vicuna-7b-v1.5}"
+fi
 
-# EVAL_DATASETS="NeoCXR" 
-# DATASETS_PATH="/data01/kjt_data/MLLM/data"
+CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-1}"
+USE_VLLM="${USE_VLLM:-False}"
 
-# EVAL_DATASETS="NeoCXR_EV" 
-# DATASETS_PATH="/media/hdd2/MedEvalKit/LLaVARad/hospital_data/NeoCXR-EV"
+SEED="${SEED:-42}"
+REASONING="${REASONING:-False}"
+TEST_TIMES="${TEST_TIMES:-1}"
+MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-8192}"
+MAX_IMAGE_NUM="${MAX_IMAGE_NUM:-1}"
+TEMPERATURE="${TEMPERATURE:-0}"
+TOP_P="${TOP_P:-0.0001}"
+REPETITION_PENALTY="${REPETITION_PENALTY:-1}"
+MAX_EVAL_SAMPLES="${MAX_EVAL_SAMPLES:-0}"
 
-# NeoCXR,TestModel,Qwen2-VL,Qwen2.5-VL,BiMediX2,LLava_Med,LLava_Rad,Huatuo,InternVL,Llama-3.2,LLava,Janus,HealthGPT,BiomedGPT,Vllm_Text,MedGemma,Med_Flamingo,MedDr
-# MODEL_NAME="LLava_Next_Video"
-# MODEL_PATH="/media/lyn/lyn/mllm/LLaVA-NeXT-Video-7B-hf"
+ENABLE_PCA_VIZ="${ENABLE_PCA_VIZ:-False}"
+ENABLE_CKNNA_VIZ="${ENABLE_CKNNA_VIZ:-False}"
+PCA_MAX_SAMPLES="${PCA_MAX_SAMPLES:-8}"
+PCA_OUTPUT_SUBDIR="${PCA_OUTPUT_SUBDIR:-pca_viz}"
+PCA_LAYER_IDS="${PCA_LAYER_IDS:-}"
+PCA_VISUAL_SOURCE="${PCA_VISUAL_SOURCE:-global}"
+CKNNA_TOPK="${CKNNA_TOPK:-10}"
 
-# MODEL_NAME="InternVL"
-# MODEL_PATH="/media/hdd2/InternVL2_5-8B"
+USE_LLM_JUDGE="${USE_LLM_JUDGE:-False}"
+GPT_MODEL="${GPT_MODEL:-None}"
+JUDGE_MODEL_TYPE="${JUDGE_MODEL_TYPE:-openai}"
+API_KEY="${API_KEY:-None}"
+BASE_URL="${BASE_URL:-None}"
 
-# MODEL_NAME="Qwen2.5-VL"
-# MODEL_PATH="/media/hdd2/Qwen2.5-VL-7B-Instruct"
+echo "[eval.sh] PROJECT_ROOT=${PROJECT_ROOT}"
+echo "[eval.sh] CONDA_DEFAULT_ENV=${CONDA_DEFAULT_ENV:-} PYTHON=$(command -v python || true)"
+echo "[eval.sh] EVAL_DATASETS=${EVAL_DATASETS}"
+echo "[eval.sh] DATASETS_PATH=${DATASETS_PATH}"
+echo "[eval.sh] MODEL_NAME=${MODEL_NAME}"
+echo "[eval.sh] MODEL_PATH=${MODEL_PATH}"
+echo "[eval.sh] OUTPUT_PATH=${OUTPUT_PATH}"
 
-# MODEL_NAME="Qwen3-VL"
-# MODEL_PATH="/media/hdd2/MedEvalKit/Qwen3-VL-8B-Instruct"
-
-# MODEL_NAME="LLava_Next_Video"
-# MODEL_PATH="/media/hdd2/MedEvalKit/LLaVA-NeXT-Video-7B-hf"
-
-# MODEL_NAME="Huatuo"
-# MODEL_PATH="/media/hdd2/HuatuoGPT-Vision-7B"
-
-# MODEL_NAME="LLava_Rad"
-# MODEL_PATH="/media/hdd2/MedEvalKit/LLaVARadWeight" 
-
-MODEL_NAME="DQLLava"
-MODEL_PATH="/data01/kjt_data/MLLM/DQLLaVAhpc/checkpoints/llavarad-stage1-projector-cross-8e-1e-4"
-
-export DQ_BASE_MODEL_PATH="/data01/kjt_data/MLLM/LLaVARadWeight/vicuna-7b-v1.5"
-export DQ_ARCH_MODEL_PATH="/data01/kjt_data/MLLM/LLaVARadWeight"
-
-# MODEL_NAME="NeoRed"
-# MODEL_PATH="/data01/kjt_data/MLLM/LLaVARadWeight" 
-# MODEL_PATH="/data01/kjt_data/MLLM/data/clincheadKLGllosswodevtokens-lora-1e-1e-4"
-# MODEL_PATH="/data01/kjt_data/MLLM/NeoRed/expertimentsweight/monthb163b32r641e-4baselinew3.4-lora-1e-1e-4" 
-
-# MODEL_PATH="/data01/kjt_data/MLLM/NeoRed/expertimentsweight/B_mix1r=64mimic4k+rank64_findcliphiddenall3loss-lora-1e-1e-4"
-#  MODEL_PATH="/data01/kjt_data/MLLM/data/clincheadKLGllosswodevtokens-lora-1e-1e-4"
-# MODEL_PATH="/data01/kjt_data/MLLM/data/clincheadKLGllosswoclinicstokens-lora-1e-1e-4"
-# MODEL_NAME="LLava"
-# MODEL_PATH="/media/hdd2/llava-1.5-7b-hf"
-
-# MODEL_NAME="Lingshu-7B"
-# MODEL_PATH="/media/hdd2/MedEvalKit/Lingshu-7B"
-
-# MODEL_NAME="LLava_Med"
-# MODEL_PATH="/media/hdd2/LLaVA-Med/llava-med-v1.5-mistral-7b"
-
-#vllm setting
-CUDA_VISIBLE_DEVICES="2,3"
-TENSOR_PARALLEL_SIZE="2"
-USE_VLLM="True"
-
-#Eval setting
-SEED=42
-REASONING="False"
-TEST_TIMES=1
-
-# Eval LLM setting
-MAX_NEW_TOKENS=8192 #原始8192 公开 2048 Neo 1024
-MAX_IMAGE_NUM=1
-TEMPERATURE=0
-TOP_P=0.0001
-REPETITION_PENALTY=1
-
-# LLM judge setting
-USE_LLM_JUDGE="False"
-# gpt api model name
-GPT_MODEL="openai/gpt-4o" #openrouter:openai/gpt-4o  DeepSeek-R1
-JUDGE_MODEL_TYPE="openai"  # openai deepseek or gemini or deepseek or claude openrouter
-API_KEY="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" #gpt4o:lyn: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 zzl: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 #cat:sk-UcleIjwK0he9nGBCLDIrKXg83TzOJ08qybPnkjMG58We36uw
-BASE_URL="https://openrouter.ai/api/v1" #  https://openrouter.ai/api/v1  https://openrouter.ai/api/v1/chat/completions https://api.catflows.com
-
-# #deepseek
-# GPT_MODEL="DeepSeek-R1" #openrouter:openai/gpt-4o  DeepSeek-R1
-# JUDGE_MODEL_TYPE="deepseek"  # openai deepseek or gemini or deepseek or claude openrouter
-# API_KEY="8Tu4U1IkiTn9FV4R2859A1D5B4844062B645C095648c1b6a" #gpt4o:lyn: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 zzl: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 #cat:sk-UcleIjwK0he9nGBCLDIrKXg83TzOJ08qybPnkjMG58We36uw
-# BASE_URL="https://llmapi.tongji.edu.cn/v1" #  https://openrouter.ai/api/v1  https://openrouter.ai/api/v1/chat/completions https://api.catflows.com
-
-
-# pass hyperparameters and run python sccript
 python eval.py \
-    --eval_datasets "$EVAL_DATASETS" \
-    --datasets_path "$DATASETS_PATH" \
-    --output_path "$OUTPUT_PATH" \
-    --model_name "$MODEL_NAME" \
-    --model_path "$MODEL_PATH" \
-    --seed $SEED \
-    --cuda_visible_devices "$CUDA_VISIBLE_DEVICES" \
-    --tensor_parallel_size "$TENSOR_PARALLEL_SIZE" \
-    --use_vllm "USE_VLLM" \
-    --max_new_tokens "$MAX_NEW_TOKENS" \
-    --max_image_num "$MAX_IMAGE_NUM" \
-    --temperature "$TEMPERATURE"  \
-    --top_p "$TOP_P" \
-    --repetition_penalty "$REPETITION_PENALTY" \
-    --reasoning "$REASONING" \
-    --use_llm_judge "$USE_LLM_JUDGE" \
-    --judge_model_type "$JUDGE_MODEL_TYPE" \
-    --judge_model "$GPT_MODEL" \
-    --api_key "$API_KEY" \
-    --base_url "$BASE_URL" \
-    --test_times "$TEST_TIMES"
+  --eval_datasets "${EVAL_DATASETS}" \
+  --datasets_path "${DATASETS_PATH}" \
+  --output_path "${OUTPUT_PATH}" \
+  --model_name "${MODEL_NAME}" \
+  --model_path "${MODEL_PATH}" \
+  --seed "${SEED}" \
+  --cuda_visible_devices "${CUDA_VISIBLE_DEVICES}" \
+  --tensor_parallel_size "${TENSOR_PARALLEL_SIZE}" \
+  --use_vllm "${USE_VLLM}" \
+  --max_new_tokens "${MAX_NEW_TOKENS}" \
+  --max_image_num "${MAX_IMAGE_NUM}" \
+  --temperature "${TEMPERATURE}" \
+  --top_p "${TOP_P}" \
+  --repetition_penalty "${REPETITION_PENALTY}" \
+  --reasoning "${REASONING}" \
+  --use_llm_judge "${USE_LLM_JUDGE}" \
+  --judge_model_type "${JUDGE_MODEL_TYPE}" \
+  --judge_model "${GPT_MODEL}" \
+  --api_key "${API_KEY}" \
+  --base_url "${BASE_URL}" \
+  --test_times "${TEST_TIMES}" \
+  --enable_pca_viz "${ENABLE_PCA_VIZ}" \
+  --enable_cknna_viz "${ENABLE_CKNNA_VIZ}" \
+  --pca_max_samples "${PCA_MAX_SAMPLES}" \
+  --pca_output_subdir "${PCA_OUTPUT_SUBDIR}" \
+  --pca_layer_ids "${PCA_LAYER_IDS}" \
+  --pca_visual_source "${PCA_VISUAL_SOURCE}" \
+  --cknna_topk "${CKNNA_TOPK}" \
+  --max_eval_samples "${MAX_EVAL_SAMPLES}"

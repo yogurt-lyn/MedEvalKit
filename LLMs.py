@@ -45,6 +45,19 @@ class Qwen2VL:
             from models.Qwen3_VL.Qwen3_VL_hf import Qwen3_VL
         return Qwen3_VL(model_path, args)
 
+
+@LLMRegistry.register("Qwen3-VL-Thinking")
+class Qwen3_VL_Thinking:
+    """Qwen3-VL-Thinking / Qwen3-VL-8B-Thinking：与 Qwen3-VL 相同的 HF / vLLM 推理栈，仅注册名不同。"""
+
+    def __new__(cls, model_path: str, args: Any) -> Any:
+        if os.environ.get("use_vllm", "True") == "True":
+            from models.Qwen3_VL.Qwen3_VL_vllm import Qwen3_VL
+        else:
+            from models.Qwen3_VL.Qwen3_VL_hf import Qwen3_VL
+        return Qwen3_VL(model_path, args)
+
+
 @LLMRegistry.register("BiMediX2")
 class BiMediX2:
     def __new__(cls, model_path: str, args: Any) -> Any:
@@ -98,6 +111,16 @@ class Llava:
         else:
             from models.LLava.LLava_hf import Llava
         return Llava(model_path, args)
+
+
+@LLMRegistry.register("LLava_Next_Video")
+class LLavaNextVideoEntry:
+    """HF LlavaNextVideoForConditionalGeneration（eval.sh 与 IU_XRAY 可视化脚本）。"""
+
+    def __new__(cls, model_path: str, args: Any) -> Any:
+        from models.LLava_Next_Video.LLava_Next_Video import LlavaNextVideo
+
+        return LlavaNextVideo(model_path, args)
 
 
 @LLMRegistry.register("LLava_Rad")

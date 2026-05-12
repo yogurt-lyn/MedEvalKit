@@ -1,11 +1,12 @@
 import requests
 import json
+import os
 
 question = "How would you build the tallest building ever?"
 
 url = "https://openrouter.ai/api/v1/chat/completions"
 headers = {
-  "Authorization": f"Bearer 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",#zzl：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
+  "Authorization": f"Bearer {os.environ.get('API_KEY', '')}",
   "Content-Type": "application/json"
 }
 

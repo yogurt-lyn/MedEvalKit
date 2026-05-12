@@ -41,14 +41,14 @@ USE_LLM_JUDGE="False"
 # gpt api model name
 GPT_MODEL="openai/gpt-4o" #openrouter:openai/gpt-4o  DeepSeek-R1
 JUDGE_MODEL_TYPE="openai"  # openai deepseek or gemini or deepseek or claude openrouter
-API_KEY="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" #gpt4o:lyn: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 zzl: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 #cat:sk-UcleIjwK0he9nGBCLDIrKXg83TzOJ08qybPnkjMG58We36uw
+API_KEY="${API_KEY:-None}"
 BASE_URL="https://openrouter.ai/api/v1" #  https://openrouter.ai/api/v1  https://openrouter.ai/api/v1/chat/completions https://api.catflows.com
 
 
 # #deepseek
 # GPT_MODEL="DeepSeek-R1" #openrouter:openai/gpt-4o  DeepSeek-R1
 # JUDGE_MODEL_TYPE="deepseek"  # openai deepseek or gemini or deepseek or claude openrouter
-# API_KEY="8Tu4U1IkiTn9FV4R2859A1D5B4844062B645C095648c1b6a" #gpt4o:lyn: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 zzl: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 #cat:sk-UcleIjwK0he9nGBCLDIrKXg83TzOJ08qybPnkjMG58We36uw
+# API_KEY="${API_KEY:-None}"
 # BASE_URL="https://llmapi.tongji.edu.cn/v1" #  https://openrouter.ai/api/v1  https://openrouter.ai/api/v1/chat/completions https://api.catflows.com
 
 

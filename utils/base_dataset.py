@@ -15,6 +15,12 @@ class BaseDataset:
 
   def run(self,samples,model,batch_size = 2000):
     out_samples = []
+    enable_pca_viz = os.environ.get("ENABLE_PCA_VIZ", "False") == "True"
+    enable_cknna_viz = os.environ.get("ENABLE_CKNNA_VIZ", "False") == "True"
+    pca_max_samples = int(os.environ.get("PCA_MAX_SAMPLES", "8"))
+    pca_output_subdir = os.environ.get("PCA_OUTPUT_SUBDIR", "pca_viz")
+    pca_output_dir = os.path.join(self.output_path, pca_output_subdir)
+    processed_count = 0
     with torch.no_grad():
         messages_list = []
         current_messages = []
@@ -31,17 +37,60 @@ class BaseDataset:
             messages_list.append([current_messages,current_samples])
         
         for current_messages,current_samples in tqdm(messages_list):
-            outputs = model.generate_outputs(current_messages)
+            outputs = self._generate_outputs_compatible(
+                model=model,
+                current_messages=current_messages,
+                enable_pca_viz=enable_pca_viz,
+                enable_cknna_viz=enable_cknna_viz,
+                pca_output_dir=pca_output_dir,
+                pca_max_samples=pca_max_samples,
+                processed_count=processed_count,
+            )
             try:
                 for sample,response in zip(current_samples,outputs):
                     del sample["messages"]
                     sample["response"] = response
                     out_samples.append(sample)   
+                processed_count += len(current_samples)
             except Exception as e:
                 from pdb import set_trace;set_trace()
                 print(e)
             gc.collect()
     return out_samples
+
+  def _generate_outputs_compatible(
+      self,
+      model,
+      current_messages,
+      enable_pca_viz,
+      enable_cknna_viz,
+      pca_output_dir,
+      pca_max_samples,
+      processed_count,
+  ):
+    want_viz = enable_pca_viz or enable_cknna_viz
+    if want_viz and hasattr(model, "generate_outputs_with_pca"):
+      try:
+        return model.generate_outputs_with_pca(
+            current_messages,
+            pca_output_dir=pca_output_dir,
+            pca_max_samples=pca_max_samples,
+            sample_start_idx=processed_count,
+        )
+      except TypeError:
+        try:
+          return model.generate_outputs_with_pca(current_messages)
+        except TypeError:
+          return model.generate_outputs_with_pca(
+              current_messages,
+              pca_output_dir,
+              pca_max_samples,
+              processed_count,
+          )
+      except Exception as e:
+        print(f"[viz-fallback] generate_outputs_with_pca failed, fallback to generate_outputs: {e}")
+
+    return model.generate_outputs(current_messages)
 
   def cal_matrics(self):
     pass

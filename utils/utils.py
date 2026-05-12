@@ -388,7 +388,7 @@ class deepseek:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = os.environ.get("api_key")
-        # self.api_key="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"
+        # Set api_key through the `api_key` environment variable.
 
         if not self.api_key:
             raise ValueError("No API key found. Please set environment variable `api_key`")
@@ -478,7 +478,7 @@ class openrouter:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = os.environ.get("api_key")
-        # self.api_key="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"
+        # Set api_key through the `api_key` environment variable.
 
         if not self.api_key:
             raise ValueError("No API key found. Please set environment variable `api_key`")
