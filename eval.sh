@@ -14,6 +14,15 @@ if [[ -n "${CONDA_NAME}" ]] && command -v conda >/dev/null 2>&1; then
   source "$(conda info --base)/etc/profile.d/conda.sh"
   conda activate "${CONDA_NAME}"
 fi
+if [[ -n "${CONDA_PREFIX:-}" ]]; then
+  unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
+  export PATH="${CONDA_PREFIX}/bin:${PATH}"
+  hash -r
+fi
+PYTHON_BIN="${PYTHON_BIN:-python}"
+if [[ -n "${CONDA_PREFIX:-}" && -x "${CONDA_PREFIX}/bin/python" ]]; then
+  PYTHON_BIN="${CONDA_PREFIX}/bin/python"
+fi
 
 cd "${PROJECT_ROOT}"
 unset PYTORCH_CUDA_ALLOC_CONF
@@ -58,14 +67,14 @@ API_KEY="${API_KEY:-None}"
 BASE_URL="${BASE_URL:-None}"
 
 echo "[eval.sh] PROJECT_ROOT=${PROJECT_ROOT}"
-echo "[eval.sh] CONDA_DEFAULT_ENV=${CONDA_DEFAULT_ENV:-} PYTHON=$(command -v python || true)"
+echo "[eval.sh] CONDA_DEFAULT_ENV=${CONDA_DEFAULT_ENV:-} PYTHON=${PYTHON_BIN}"
 echo "[eval.sh] EVAL_DATASETS=${EVAL_DATASETS}"
 echo "[eval.sh] DATASETS_PATH=${DATASETS_PATH}"
 echo "[eval.sh] MODEL_NAME=${MODEL_NAME}"
 echo "[eval.sh] MODEL_PATH=${MODEL_PATH}"
 echo "[eval.sh] OUTPUT_PATH=${OUTPUT_PATH}"
 
-python eval.py \
+"${PYTHON_BIN}" eval.py \
   --eval_datasets "${EVAL_DATASETS}" \
   --datasets_path "${DATASETS_PATH}" \
   --output_path "${OUTPUT_PATH}" \

@@ -44,6 +44,11 @@ else
   source /share/apps/miniconda3/etc/profile.d/conda.sh
   conda activate "${CONDA_NAME}"
 fi
+if [[ -n "${CONDA_PREFIX:-}" ]]; then
+  unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
+  export PATH="${CONDA_PREFIX}/bin:${PATH}"
+  hash -r
+fi
 _EXPECT_ENV="${MEDEVALKIT_CONDA_ENV:-${CONDA_NAME}}"
 if [[ "${CONDA_DEFAULT_ENV:-}" != "${_EXPECT_ENV}" ]]; then
   echo "[FATAL] 需要 conda 环境 '${_EXPECT_ENV}'，当前 CONDA_DEFAULT_ENV='${CONDA_DEFAULT_ENV:-}' python='$(command -v python || true)'" >&2
@@ -51,7 +56,8 @@ if [[ "${CONDA_DEFAULT_ENV:-}" != "${_EXPECT_ENV}" ]]; then
 fi
 
 unset PYTORCH_CUDA_ALLOC_CONF
-_PYVER="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+_PYTHON_BIN="${CONDA_PREFIX}/bin/python"
+_PYVER="$("${_PYTHON_BIN}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 CUDA_RUNTIME_LIB="${CONDA_PREFIX}/lib/python${_PYVER}/site-packages/nvidia/cuda_runtime/lib"
 CUSPARSE_LIB="${CONDA_PREFIX}/lib/python${_PYVER}/site-packages/nvidia/cusparse/lib"
 export LD_LIBRARY_PATH="${CUDA_RUNTIME_LIB}:${CUSPARSE_LIB}:${CONDA_PREFIX}/lib:/share/apps/cuda-11.8/lib64:/share/apps/cuda-11.8/targets/x86_64-linux/lib:/share/apps/cuda-12.1/lib64:${LD_LIBRARY_PATH:-}"
