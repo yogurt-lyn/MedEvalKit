@@ -23,7 +23,14 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="${MEDEVALKIT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+_DEFAULT_PROJECT_ROOT="/share/home/u16050/apps/Lynne/MLLM/MedEvalKit"
+if [[ -n "${MEDEVALKIT_ROOT:-}" ]]; then
+  PROJECT_ROOT="${MEDEVALKIT_ROOT}"
+elif [[ -n "${SLURM_SUBMIT_DIR:-}" && -f "${SLURM_SUBMIT_DIR}/eval.sh" ]]; then
+  PROJECT_ROOT="${SLURM_SUBMIT_DIR}"
+else
+  PROJECT_ROOT="${_DEFAULT_PROJECT_ROOT}"
+fi
 CONDA_NAME="${CONDA_NAME:-qwencomp}"
 export CONDA_NAME
 export MEDEVALKIT_ROOT="${MEDEVALKIT_ROOT:-${PROJECT_ROOT}}"
